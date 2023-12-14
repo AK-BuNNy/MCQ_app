@@ -1,28 +1,49 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserType } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DeepPartial } from 'typeorm';
 import { AuthService } from '../auth/auth.service';
+import { OtpService } from '../otp/otp.service';
+
+type UserCreation = DeepPartial<User> & { otpSecret: string };
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private userRepo: Repository<User>,
-        private readonly authService: AuthService,
+    private readonly authService: AuthService,
+    private readonly otpService: OtpService,
   ) {}
 
-  async create(createUserDto: CreateUserDto) {
-    const { password, user_type } = createUserDto;
-    const userPhoneExist = await this.findAllUserByMobile(createUserDto.phone);
+  async create(createUserDto: CreateUserDto): Promise<User> {
+    const { phone, user_type } = createUserDto;
+    const userPhoneExist = await this.findUserByMobile(phone);
     if (userPhoneExist) {
-      return { message: 'User with Mobile Number exist' };
-      const newUser = await this.userRepo.create(createUserDto);
-       const user = await this.userRepo.save(newUser);
-        return user;
-    } 
+      throw new ConflictException('User with Mobile Number already exists');
+    }
+    const otpSecret = this.otpService.generateSecret();
+    const newUser: UserCreation = {
+      ...createUserDto,
+      otpSecret,
+    };
+    const user = await this.userRepo.save(newUser);
+    return user;
+  }
+
+  async verifyOtp(userId: number, otp: string): Promise<boolean> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    const isValidOtp = this.otpService.validateOtp(user.otpSecret, otp);
+
+    if (!isValidOtp) {
+      throw new BadRequestException('Invalid OTP');
+    }
+    return isValidOtp;
   }
 
   async findAll() {

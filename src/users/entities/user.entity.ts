@@ -35,11 +35,13 @@ export class User {
   @Column()
   password: string;
 
-
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
   updatedAt: Date;
+
+  @Column({ nullable: true })
+  otpSecret: string;
 
 }

@@ -41,6 +41,11 @@ export class  CreateUserTable1702535773594 implements MigrationInterface {
                  isNullable: true,
                },
                {
+                 name: 'otpSecret',
+                 type: 'varchar',
+                 isNullable: true,
+               },
+               {
                  name: 'created_at',
                  type: 'timestamp',
                  default: 'CURRENT_TIMESTAMP',
